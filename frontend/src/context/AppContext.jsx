@@ -34,16 +34,38 @@ export const AppProvider = ({ children }) => {
     };
   }, []);
 
-  const signUp = async (email, password) => {
+  const signUp = async (email, password, name) => {
     try {
       setError(null);
       const { data, error: signUpError } = await supabase.auth.signUp({
         email,
         password,
+        options: {
+          data: {
+            full_name: name,
+            avatar_url: `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=random`
+          }
+        }
       });
+      
       if (signUpError) throw signUpError;
+      
+      // Update user metadata in the database
+      if (data?.user) {
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .upsert({
+            id: data.user.id,
+            full_name: name,
+            updated_at: new Date().toISOString()
+          });
+          
+        if (profileError) throw profileError;
+      }
+      
       return { success: true, data };
     } catch (error) {
+      console.error('Signup error:', error);
       setError(error.message);
       return { success: false, error };
     }
