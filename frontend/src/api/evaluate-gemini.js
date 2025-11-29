@@ -1,13 +1,8 @@
-import { createClient } from '@supabase/supabase-js';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import { supabase } from '../lib/supabase';
 
-// Initialize Supabase client
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseServiceKey = import.meta.env.VITE_SUPABASE_SERVICE_KEY;
-const supabase = createClient(supabaseUrl, supabaseServiceKey);
-
-// Initialize Google's Generative AI
-const genAI = new GoogleGenerativeAI(import.meta.env.VITE_GEMINI_API_KEY);
+// Initialize the Google Generative AI client with your API key
+const genAI = new GoogleGenerativeAI(process.env.VITE_GEMINI_API_KEY);
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -15,20 +10,10 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { code, title = '', description = '', userId } = req.body;
-    const authHeader = req.headers.authorization;
-    
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return res.status(401).json({ error: 'Unauthorized' });
-    }
+    const { code, title, description, userId } = req.body;
 
-    const token = authHeader.split(' ')[1];
-    
-    // Verify the token with Supabase
-    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
-    
-    if (authError || !user || user.id !== userId) {
-      return res.status(403).json({ error: 'Forbidden' });
+    if (!code) {
+      return res.status(400).json({ error: 'Code is required' });
     }
 
     // Get the model
@@ -52,14 +37,14 @@ export default async function handler(req, res) {
     const response = await result.response;
     const evaluationText = response.text();
 
-    // Parse the evaluation
+    // Parse the evaluation (you might need to adjust this based on Gemini's response format)
     const scoreMatch = evaluationText.match(/\b\d+(\.\d+)?\b/);
     const score = scoreMatch ? parseFloat(scoreMatch[0]) : 5.0;
 
     const strengths = [];
     const improvements = [];
     
-    // Simple parsing - adjust based on Gemini's response format
+    // Simple parsing - you might need to adjust this based on Gemini's response format
     const strengthMatch = evaluationText.match(/strengths?:([\s\S]*?)(?=\n\s*\d+\.|\n\s*Areas|\n\s*Suggestions|$)/i);
     if (strengthMatch) {
       strengths.push(...strengthMatch[1].split('\n').filter(line => line.trim()));
@@ -71,7 +56,7 @@ export default async function handler(req, res) {
     }
 
     // Save to database
-    const { data: evaluation, error: dbError } = await supabase
+    const { data: evaluation, error } = await supabase
       .from('evaluations')
       .insert([
         {
@@ -90,25 +75,23 @@ export default async function handler(req, res) {
       .select()
       .single();
 
-    if (dbError) throw dbError;
+    if (error) throw error;
 
-    // Return the evaluation result
     return res.status(200).json({
-      success: true,
-      data: {
-        id: evaluation.id,
-        score,
-        strengths: evaluation.strengths,
-        improvements: evaluation.improvements,
-        fullEvaluation: evaluation.full_evaluation,
-        isPremium: evaluation.is_premium,
-        preview: evaluation.full_evaluation.substring(0, 200) + '...',
-      },
+      id: evaluation.id,
+      score,
+      strengths: evaluation.strengths,
+      improvements: evaluation.improvements,
+      fullEvaluation: evaluation.full_evaluation,
+      isPremium: evaluation.is_premium,
+      createdAt: evaluation.created_at
     });
+
   } catch (error) {
-    console.error('Evaluation error:', error);
-    return res.status(500).json({
-      error: error.message || 'An error occurred during evaluation',
+    console.error('Error evaluating code with Gemini:', error);
+    return res.status(500).json({ 
+      error: 'Failed to evaluate code',
+      details: error.message 
     });
   }
 }

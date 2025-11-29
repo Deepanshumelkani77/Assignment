@@ -1,34 +1,24 @@
-import { createClient } from '@supabase/supabase-js';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import { createClient } from '@supabase/supabase-js';
 
-// Initialize Supabase client
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseServiceKey = import.meta.env.VITE_SUPABASE_SERVICE_KEY;
-const supabase = createClient(supabaseUrl, supabaseServiceKey);
+// Initialize Supabase client with service key
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_KEY
+);
 
 // Initialize Google's Generative AI
-const genAI = new GoogleGenerativeAI(import.meta.env.VITE_GEMINI_API_KEY);
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
-export default async function handler(req, res) {
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
-  }
-
+export async function POST(req) {
   try {
-    const { code, title = '', description = '', userId } = req.body;
-    const authHeader = req.headers.authorization;
-    
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return res.status(401).json({ error: 'Unauthorized' });
-    }
+    const { code, title, description, userId } = await req.json();
 
-    const token = authHeader.split(' ')[1];
-    
-    // Verify the token with Supabase
-    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
-    
-    if (authError || !user || user.id !== userId) {
-      return res.status(403).json({ error: 'Forbidden' });
+    if (!code) {
+      return new Response(JSON.stringify({ error: 'Code is required' }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' },
+      });
     }
 
     // Get the model
@@ -71,7 +61,7 @@ export default async function handler(req, res) {
     }
 
     // Save to database
-    const { data: evaluation, error: dbError } = await supabase
+    const { data: evaluation, error } = await supabase
       .from('evaluations')
       .insert([
         {
@@ -90,25 +80,29 @@ export default async function handler(req, res) {
       .select()
       .single();
 
-    if (dbError) throw dbError;
+    if (error) throw error;
 
-    // Return the evaluation result
-    return res.status(200).json({
-      success: true,
-      data: {
-        id: evaluation.id,
-        score,
-        strengths: evaluation.strengths,
-        improvements: evaluation.improvements,
-        fullEvaluation: evaluation.full_evaluation,
-        isPremium: evaluation.is_premium,
-        preview: evaluation.full_evaluation.substring(0, 200) + '...',
-      },
+    return new Response(JSON.stringify({
+      id: evaluation.id,
+      score,
+      strengths: evaluation.strengths,
+      improvements: evaluation.improvements,
+      fullEvaluation: evaluation.full_evaluation,
+      isPremium: evaluation.is_premium,
+      createdAt: evaluation.created_at
+    }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
     });
+
   } catch (error) {
-    console.error('Evaluation error:', error);
-    return res.status(500).json({
-      error: error.message || 'An error occurred during evaluation',
+    console.error('Error evaluating code with Gemini:', error);
+    return new Response(JSON.stringify({ 
+      error: 'Failed to evaluate code',
+      details: error.message 
+    }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json' },
     });
   }
 }

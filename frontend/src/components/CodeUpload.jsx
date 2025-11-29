@@ -1,9 +1,14 @@
 import React, { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Upload, Code as CodeIcon, X, Loader2 } from 'lucide-react';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 import { useAppContext } from '../context/AppContext';
 import PaymentModal from './PaymentModal';
 import EvaluationResult from './EvaluationResult';
+import { supabase } from '../lib/supabase';
+
+// Initialize Google's Generative AI with the latest API version
+const genAI = new GoogleGenerativeAI(import.meta.env.VITE_GEMINI_API_KEY);
 
 const CodeUpload = () => {
   const [showPaymentModal, setShowPaymentModal] = useState(false);
@@ -131,8 +136,49 @@ const CodeUpload = () => {
 
       if (taskError) throw taskError;
 
-      // Evaluate code
-      const evaluationResult = await evaluateCode(codeContent);
+      // Evaluate code using Gemini 2.5 Flash Preview
+      const model = genAI.getGenerativeModel({ 
+        model: 'gemini-2.5-flash-preview-09-2025',
+        generationConfig: {
+          temperature: 0.7,
+          topP: 0.95,
+          topK: 40,
+          maxOutputTokens: 2048,
+        },
+      });
+      const prompt = `You are an expert code reviewer. Please evaluate the following code for quality, best practices, and potential improvements:
+
+${codeContent}
+
+Provide a detailed evaluation including:
+1. A score from 1-10
+2. Key strengths of the code
+3. Areas for improvement
+4. Specific suggestions for better practices
+
+Format your response with clear sections for each part.`;
+
+      const result = await model.generateContent(prompt);
+      const response = await result.response;
+      const evaluationText = response.text();
+
+      // Parse the evaluation
+      const scoreMatch = evaluationText.match(/\b\d+(\.\d+)?\b/);
+      const score = scoreMatch ? parseFloat(scoreMatch[0]) : 5.0;
+
+      const strengths = [];
+      const improvements = [];
+      
+      // Simple parsing - adjust based on Gemini's response format
+      const strengthMatch = evaluationText.match(/strengths?:([\s\S]*?)(?=\n\s*\d+\.|\n\s*Areas|\n\s*Suggestions|$)/i);
+      if (strengthMatch) {
+        strengths.push(...strengthMatch[1].split('\n').filter(line => line.trim()));
+      }
+
+      const improvementMatch = evaluationText.match(/improvements?:([\s\S]*?)(?=\n\s*\d+\.|\n\s*Suggestions|$)/i);
+      if (improvementMatch) {
+        improvements.push(...improvementMatch[1].split('\n').filter(line => line.trim()));
+      }
 
       // Save evaluation to database
       const { data: evaluationData, error: evalError } = await supabase
@@ -140,11 +186,13 @@ const CodeUpload = () => {
         .insert([
           {
             task_id: task.id,
-            score: evaluationResult.score,
-            strengths: evaluationResult.strengths,
-            improvements: evaluationResult.improvements,
-            full_report: evaluationResult.full_report,
-            is_premium: false, // Default to free tier
+            score: score,
+            strengths: strengths.length ? strengths : ['No specific strengths identified'],
+            improvements: improvements.length ? improvements : ['No specific improvements suggested'],
+            full_evaluation: evaluationText,
+            is_premium: false,
+            model_used: 'gemini-pro',
+            user_id: user.id
           },
         ])
         .select()
@@ -154,7 +202,10 @@ const CodeUpload = () => {
 
       setEvaluation({
         ...evaluationData,
-        ...evaluationResult,
+        score,
+        strengths,
+        improvements,
+        full_evaluation: evaluationText,
         task_title: title,
       });
       
