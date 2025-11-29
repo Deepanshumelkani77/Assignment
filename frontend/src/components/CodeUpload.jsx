@@ -186,6 +186,9 @@ Format your response with clear sections for each part.`;
         .insert([
           {
             task_id: task.id,
+            code: codeContent,
+            title: title || 'Untitled',
+            description: description || '',
             score: score,
             strengths: strengths.length ? strengths : ['No specific strengths identified'],
             improvements: improvements.length ? improvements : ['No specific improvements suggested'],
