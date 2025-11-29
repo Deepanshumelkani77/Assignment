@@ -27,7 +27,6 @@ const Login = () => {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   
@@ -38,15 +37,9 @@ const Login = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    if (!isLogin) {
-      if (password !== confirmPassword) {
-        setError("Passwords don't match");
-        return;
-      }
-      if (!name.trim()) {
-        setError("Name is required");
-        return;
-      }
+    if (!isLogin && !name.trim()) {
+      setError("Name is required");
+      return;
     }
     
     setLoading(true);
@@ -65,7 +58,6 @@ const Login = () => {
           setName('');
           setEmail('');
           setPassword('');
-          setConfirmPassword('');
         } else if (signUpError) {
           setError(signUpError.message || 'Failed to create account');
         }
@@ -200,19 +192,6 @@ const Login = () => {
                 />
               </div>
 
-              {!isLogin && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-1">Confirm Password</label>
-                  <input
-                    type="password"
-                    required
-                    className="block w-full pl-10 pr-3 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white"
-                    placeholder="••••••••"
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                  />
-                </div>
-              )}
             </motion.div>
 
             {!isLogin && (
@@ -248,7 +227,6 @@ const Login = () => {
                 setName("");
                 setEmail("");
                 setPassword("");
-                setConfirmPassword("");
               }}
               className="text-blue-400 hover:text-blue-300"
             >
