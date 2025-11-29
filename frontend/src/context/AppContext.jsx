@@ -44,25 +44,14 @@ export const AppProvider = ({ children }) => {
           data: {
             full_name: name,
             avatar_url: `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=random`
-          }
+          },
+          emailRedirectTo: `${window.location.origin}/dashboard`
         }
       });
       
       if (signUpError) throw signUpError;
       
-      // Update user metadata in the database
-      if (data?.user) {
-        const { error: profileError } = await supabase
-          .from('profiles')
-          .upsert({
-            id: data.user.id,
-            full_name: name,
-            updated_at: new Date().toISOString()
-          });
-          
-        if (profileError) throw profileError;
-      }
-      
+      // The profile will be created by the trigger we set up
       return { success: true, data };
     } catch (error) {
       console.error('Signup error:', error);
