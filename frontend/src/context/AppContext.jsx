@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 
 const AppContext = createContext();
@@ -10,29 +10,148 @@ export const useAppContext = () => {
 export const AppProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [session, setSession] = useState(null);
+  const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  const fetchUserProfile = useCallback(async (userId) => {
+    if (!userId) {
+      setProfile(null);
+      return null;
+    }
+    
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .single();
+
+      if (error) throw error;
+      setProfile(data);
+      return data;
+    } catch (error) {
+      console.error('Error fetching user profile:', error);
+      setError(error.message);
+      return null;
+    }
+  }, []);
+
   useEffect(() => {
     const getSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      setSession(session);
-      setUser(session?.user ?? null);
-      setLoading(false);
+      try {
+        const { data: { session }, error } = await supabase.auth.getSession();
+        
+        if (error) throw error;
+        
+        setSession(session);
+        setUser(session?.user ?? null);
+        
+        if (session?.user) {
+          await fetchUserProfile(session.user.id);
+        }
+      } catch (error) {
+        console.error('Error getting session:', error);
+        setError(error.message);
+      } finally {
+        setLoading(false);
+      }
     };
 
     getSession();
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      setLoading(false);
-    });
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        try {
+          setSession(session);
+          setUser(session?.user ?? null);
+          
+          if (session?.user) {
+            await fetchUserProfile(session.user.id);
+          } else {
+            setProfile(null);
+          }
+        } catch (error) {
+          console.error('Error in auth state change:', error);
+          setError(error.message);
+        } finally {
+          setLoading(false);
+        }
+      }
+    );
 
     return () => {
-      subscription?.unsubscribe();
+      if (subscription?.unsubscribe) {
+        subscription.unsubscribe();
+      }
     };
-  }, []);
+  }, [fetchUserProfile]);
+  
+  const updatePremiumStatus = async (userId, isPremium) => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .update({ is_premium: isPremium })
+        .eq('id', userId)
+        .select()
+        .single();
+        
+      if (error) throw error;
+      
+      setProfile(prev => ({
+        ...prev,
+        is_premium: isPremium
+      }));
+      
+      return data;
+    } catch (error) {
+      console.error('Error updating premium status:', error);
+      setError(error.message);
+      throw error;
+    }
+  };
+
+  const resetPassword = async (email) => {
+    try {
+      setError(null);
+      setLoading(true);
+      
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/update-password`,
+      });
+
+      if (error) throw error;
+      
+      return { success: true };
+    } catch (error) {
+      console.error('Error resetting password:', error);
+      setError(error.message);
+      throw error;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const updatePassword = async (newPassword) => {
+    try {
+      setError(null);
+      setLoading(true);
+      
+      const { error } = await supabase.auth.updateUser({
+        password: newPassword,
+      });
+
+      if (error) throw error;
+      
+      return { success: true };
+    } catch (error) {
+      console.error('Error updating password:', error);
+      setError(error.message);
+      throw error;
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const signUp = async (email, password, name) => {
     try {
@@ -134,17 +253,21 @@ export const AppProvider = ({ children }) => {
   const value = {
     user,
     session,
-    error,
+    profile,
     loading,
-    signIn,
+    error,
     signUp,
+    signIn,
     signOut,
-    evaluateCode,
+    resetPassword,
+    updatePassword,
+    updatePremiumStatus,
+    refreshProfile: () => user ? fetchUserProfile(user.id) : Promise.resolve(null)
   };
 
   return (
     <AppContext.Provider value={value}>
-      {!loading && children}
+      {children}
     </AppContext.Provider>
   );
 };

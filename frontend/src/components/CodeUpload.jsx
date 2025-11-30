@@ -3,7 +3,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Upload, Code as CodeIcon, X, Loader2 } from 'lucide-react';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { useAppContext } from '../context/AppContext';
-import PaymentModal from './PaymentModal';
 import EvaluationResult from './EvaluationResult';
 import { supabase } from '../lib/supabase';
 
@@ -11,8 +10,6 @@ import { supabase } from '../lib/supabase';
 const genAI = new GoogleGenerativeAI(import.meta.env.VITE_GEMINI_API_KEY);
 
 const CodeUpload = () => {
-  const [showPaymentModal, setShowPaymentModal] = useState(false);
-  const [selectedEvaluationId, setSelectedEvaluationId] = useState(null);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [code, setCode] = useState('');
@@ -20,7 +17,6 @@ const CodeUpload = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [evaluation, setEvaluation] = useState(null);
-  const [showPayment, setShowPayment] = useState(false);
   const fileInputRef = useRef(null);
   const { user } = useAppContext();
 
@@ -98,7 +94,6 @@ const CodeUpload = () => {
     setIsLoading(true);
     setError('');
     setEvaluation(null);
-    setShowPayment(false);
 
     try {
       let codeContent = code;
@@ -260,7 +255,7 @@ Format your response with clear sections for each part.`;
             strengths: strengths.length ? strengths : ['No specific strengths identified'],
             improvements: improvements.length ? improvements : ['No specific improvements suggested'],
             full_evaluation: evaluationText,
-            is_premium: false,
+            is_premium: true,
             model_used: 'gemini-pro',
             user_id: user.id
           },
@@ -278,9 +273,6 @@ Format your response with clear sections for each part.`;
         full_evaluation: evaluationText,
         task_title: title,
       });
-      
-      // Show payment option for full report
-      setShowPayment(true);
     } catch (error) {
       console.error('Error submitting code:', error);
       setError(error.message || 'An error occurred while processing your request');
@@ -289,20 +281,6 @@ Format your response with clear sections for each part.`;
     }
   };
 
-  const handleUpgrade = (evaluationId) => {
-    setSelectedEvaluationId(evaluationId);
-    setShowPaymentModal(true);
-  };
-
-  const handlePaymentSuccess = () => {
-    // Refresh the evaluation to show the full report
-    if (evaluation) {
-      setEvaluation(prev => ({
-        ...prev,
-        is_premium: true
-      }));
-    }
-  };
 
   if (evaluation) {
     return (
@@ -314,7 +292,6 @@ Format your response with clear sections for each part.`;
           <button
             onClick={() => {
               setEvaluation(null);
-              setShowPayment(false);
               setCode('');
               setFile(null);
               setTitle('');
@@ -326,10 +303,7 @@ Format your response with clear sections for each part.`;
           </button>
         </div>
         
-        <EvaluationResult 
-          evaluation={evaluation} 
-          onUpgrade={handleUpgrade} 
-        />
+        <EvaluationResult evaluation={evaluation} />
       </div>
     );
   }

@@ -7,7 +7,8 @@ const ReportsList = () => {
   const [reports, setReports] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const { user } = useAppContext();
+  const { user, profile } = useAppContext();
+  const isUserPremium = profile?.is_premium || false;
 
   useEffect(() => {
     fetchReports();
@@ -20,10 +21,7 @@ const ReportsList = () => {
 
       const { data, error: fetchError } = await supabase
         .from('evaluations')
-        .select(`
-          *,
-          task:task_id (title, created_at)
-        `)
+        .select('*')
         .order('created_at', { ascending: false });
 
       if (fetchError) throw fetchError;
@@ -35,12 +33,6 @@ const ReportsList = () => {
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleViewReport = (report) => {
-    // In a real app, this would navigate to a detailed report view
-    console.log('View report:', report);
-    alert('Report details would be shown here in a full implementation');
   };
 
   const formatDate = (dateString) => {
@@ -94,87 +86,82 @@ const ReportsList = () => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.3 }}
-            className="bg-gray-800/50 rounded-xl border border-gray-700/50 overflow-hidden hover:border-gray-600/50 transition-colors"
+            className="bg-gray-800/50 rounded-xl border border-gray-700/50 overflow-hidden hover:border-gray-600/50 transition-colors p-6"
           >
-            <div className="p-5">
-              <div className="flex flex-col md:flex-row md:items-center md:justify-between">
-                <div className="flex-1 min-w-0">
-                  <h3 className="text-lg font-medium text-white truncate">
-                    {report.task?.title || 'Untitled Evaluation'}
-                  </h3>
-                  <p className="text-sm text-gray-400 mt-1">
-                    Evaluated on {formatDate(report.created_at)}
-                  </p>
+            <div className="flex flex-col space-y-4">
+              <div>
+                <h3 className="text-xl font-semibold text-white">
+                  {report.title || 'Untitled Evaluation'}
+                </h3>
+                <p className="text-sm text-gray-400 mt-1">
+                  Evaluated on {formatDate(report.created_at)}
+                </p>
+                <div className="mt-2 text-3xl font-bold text-white">
+                  {report.score?.toFixed(1) || 'N/A'}
+                  <span className="text-sm text-gray-400 ml-1">/10</span>
                 </div>
-                
-                <div className="mt-3 md:mt-0 md:ml-4 flex items-center space-x-4">
-                  <div className="text-center">
-                    <div className={`text-2xl font-bold ${
-                      report.score >= 8 ? 'text-green-400' : 
-                      report.score >= 5 ? 'text-yellow-400' : 'text-red-400'
-                    }`}>
-                      {report.score}
-                    </div>
-                    <div className="text-xs text-gray-500">Score</div>
-                  </div>
-                  
-                  <button
-                    onClick={() => handleViewReport(report)}
-                    className="px-4 py-2 text-sm bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors flex items-center"
-                  >
-                    <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+              </div>
+
+              <div>
+                <h4 className="text-sm font-medium text-blue-400 mb-2">Strengths</h4>
+                <ul className="space-y-2">
+                  {report.strengths?.slice(0, 3).map((strength, i) => (
+                    <li key={i} className="flex items-start">
+                      <div className="flex-shrink-0 mt-1">
+                        <div className="w-2 h-2 rounded-full bg-green-400 mt-1.5"></div>
+                      </div>
+                      <span className="ml-2 text-sm text-gray-300">
+                        {strength}
+                      </span>
+                    </li>
+                  ))}
+                  {!isUserPremium && report.strengths?.length > 3 && (
+                    <li className="text-xs text-blue-400 mt-2">
+                      +{report.strengths.length - 3} more strengths available with premium
+                    </li>
+                  )}
+                </ul>
+              </div>
+
+              <div className="pt-4 border-t border-gray-700/50">
+                <h4 className="text-sm font-medium text-orange-400 mb-2">Areas for Improvement</h4>
+                <ul className="space-y-2">
+                  {report.improvements?.slice(0, 3).map((improvement, i) => (
+                    <li key={i} className="flex items-start">
+                      <div className="flex-shrink-0 mt-1">
+                        <div className="w-2 h-2 rounded-full bg-orange-400 mt-1.5"></div>
+                      </div>
+                      <span className="ml-2 text-sm text-gray-300">
+                        {improvement}
+                      </span>
+                    </li>
+                  ))}
+                  {!isUserPremium && report.improvements?.length > 3 && (
+                    <li className="text-xs text-blue-400 mt-2">
+                      +{report.improvements.length - 3} more improvements available with premium
+                    </li>
+                  )}
+                </ul>
+              </div>
+
+              {!isUserPremium && (
+                <div className="mt-4 p-4 bg-gray-800/30 border border-gray-700 rounded-lg text-center">
+                  <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-blue-900/30 mb-3">
+                    <svg className="w-6 h-6 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                     </svg>
-                    View
+                  </div>
+                  <h3 className="text-lg font-medium text-white mb-1">Unlock More with Premium</h3>
+                  <p className="text-sm text-gray-300 mb-4">Get full access to all features and unlimited reports</p>
+                  <button
+                    onClick={() => window.location.href = '/upgrade'}
+                    className="inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all"
+                  >
+                    <svg className="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                    </svg>
+                    Upgrade to Premium
                   </button>
-                </div>
-              </div>
-
-              <div className="mt-4 pt-4 border-t border-gray-700/50">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <h4 className="text-sm font-medium text-green-400 mb-2">Strengths</h4>
-                    <ul className="space-y-1">
-                      {report.strengths.slice(0, 2).map((strength, i) => (
-                        <li key={i} className="flex items-start">
-                          <span className="text-green-500 mr-2 mt-0.5">✓</span>
-                          <span className="text-sm text-gray-300">{strength}</span>
-                        </li>
-                      ))}
-                      {report.strengths.length > 2 && (
-                        <li className="text-xs text-gray-500">+{report.strengths.length - 2} more</li>
-                      )}
-                    </ul>
-                  </div>
-                  <div>
-                    <h4 className="text-sm font-medium text-yellow-400 mb-2">Improvements</h4>
-                    <ul className="space-y-1">
-                      {report.improvements.slice(0, 2).map((improvement, i) => (
-                        <li key={i} className="flex items-start">
-                          <span className="text-yellow-500 mr-2 mt-0.5">🔧</span>
-                          <span className="text-sm text-gray-300">{improvement}</span>
-                        </li>
-                      ))}
-                      {report.improvements.length > 2 && (
-                        <li className="text-xs text-gray-500">+{report.improvements.length - 2} more</li>
-                      )}
-                    </ul>
-                  </div>
-                </div>
-              </div>
-
-              {!report.is_premium && (
-                <div className="mt-4 pt-4 border-t border-gray-700/50">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h4 className="text-sm font-medium text-blue-400">Full Report Available</h4>
-                      <p className="text-xs text-gray-400">Upgrade to view the complete analysis</p>
-                    </div>
-                    <button className="px-3 py-1.5 text-xs bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white rounded-lg transition-colors">
-                      Upgrade Now
-                    </button>
-                  </div>
                 </div>
               )}
             </div>
