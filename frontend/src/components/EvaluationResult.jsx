@@ -1,6 +1,8 @@
 import React, { useState, useContext } from 'react';
 import { motion } from 'framer-motion';
-import { Check, AlertTriangle, Lock, Star, Zap, Code as CodeIcon, ChevronDown, ChevronUp } from 'lucide-react';
+import { Check, AlertTriangle, Zap, Loader2, Lock, Star } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+// Payment handling moved to Node.js server
 import { useAppContext } from '../context/AppContext';
 
 const EvaluationResult = ({ evaluation, onUpgrade }) => {
@@ -46,8 +48,12 @@ const EvaluationResult = ({ evaluation, onUpgrade }) => {
     : [improvements || 'No specific improvements suggested'];
 
 
+  const { refreshProfile } = useAppContext();
+  const [isProcessing, setIsProcessing] = useState(false);
+
   const handleUpgrade = () => {
-    onUpgrade(evaluation?.id);
+    // Redirect to your Node.js server's payment page
+    window.location.href = 'http://localhost:3001/payment';
   };
 
   return (
@@ -177,10 +183,20 @@ const EvaluationResult = ({ evaluation, onUpgrade }) => {
         <div className="mt-6 text-center">
           <button
             onClick={handleUpgrade}
-            className="inline-flex items-center justify-center px-6 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all"
+            disabled={isProcessing}
+            className={`inline-flex items-center justify-center px-6 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all ${isProcessing ? 'opacity-75 cursor-not-allowed' : ''}`}
           >
-            <Zap className="w-5 h-5 mr-2" />
-            Upgrade Now to See Full Report
+            {isProcessing ? (
+              <>
+                <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                Processing...
+              </>
+            ) : (
+              <>
+                <Zap className="w-5 h-5 mr-2" />
+                Upgrade Now (₹299)
+              </>
+            )}
           </button>
           <p className="mt-2 text-sm text-blue-300">Get detailed analysis and recommendations</p>
         </div>
