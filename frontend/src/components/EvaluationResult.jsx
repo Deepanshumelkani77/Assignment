@@ -5,17 +5,35 @@ import { Check, AlertTriangle, Lock, Star, Zap, Code as CodeIcon } from 'lucide-
 const EvaluationResult = ({ evaluation, onUpgrade }) => {
   if (!evaluation) return null;
 
-  const { score, strengths, improvements, is_premium, timestamp } = evaluation;
-  const scorePercentage = Math.round((score / 10) * 100);
+  // Ensure we have proper array data for strengths and improvements
+  const { 
+    score = 5.0, 
+    strengths = [], 
+    improvements = [], 
+    is_premium = false, 
+    timestamp = new Date().toISOString() 
+  } = evaluation;
+  
+  const scorePercentage = Math.round((parseFloat(score) / 10) * 100);
+  const displayScore = typeof score === 'number' ? score.toFixed(1) : parseFloat(score || 5).toFixed(1);
 
   // Format date
-  const formattedDate = new Date(timestamp).toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
+  let formattedDate = 'Just now';
+  try {
+    formattedDate = new Date(timestamp).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  } catch (e) {
+    console.error('Error formatting date:', e);
+  }
+  
+  // Ensure strengths and improvements are arrays
+  const safeStrengths = Array.isArray(strengths) ? strengths : [strengths || 'No specific strengths identified'];
+  const safeImprovements = Array.isArray(improvements) ? improvements : [improvements || 'No specific improvements suggested'];
 
   return (
     <div className="space-y-8">
@@ -62,7 +80,7 @@ const EvaluationResult = ({ evaluation, onUpgrade }) => {
                 textAnchor="middle"
                 dominantBaseline="middle"
               >
-                {score.toFixed(1)}
+                {displayScore}
               </text>
               <text
                 x="18"
@@ -98,43 +116,55 @@ const EvaluationResult = ({ evaluation, onUpgrade }) => {
       <div className="space-y-4">
         <h3 className="text-lg font-semibold text-white flex items-center">
           <Check className="w-5 h-5 text-green-400 mr-2" />
-          Strengths
+          Key Strengths
         </h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {strengths.slice(0, is_premium ? strengths.length : 2).map((strength, index) => (
-            <motion.div
-              key={index}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.1 }}
-              className="flex items-start p-4 bg-green-900/20 border border-green-800/30 rounded-lg"
-            >
-              <Check className="w-5 h-5 text-green-400 mt-0.5 mr-3 flex-shrink-0" />
-              <p className="text-green-100">{strength}</p>
-            </motion.div>
-          ))}
+        <div className="space-y-3">
+          {safeStrengths.length > 0 ? (
+            safeStrengths.map((strength, index) => {
+              // Skip empty strings or invalid entries
+              if (!strength || typeof strength !== 'string') return null;
+              return (
+                <div key={index} className="flex items-start">
+                  <div className="flex-shrink-0 mt-1">
+                    <div className="w-5 h-5 rounded-full bg-green-500/20 flex items-center justify-center">
+                      <Check className="w-3 h-3 text-green-400" />
+                    </div>
+                  </div>
+                  <p className="ml-3 text-gray-300">{strength.trim()}</p>
+                </div>
+              );
+            })
+          ) : (
+            <p className="text-gray-400">No specific strengths identified in the code.</p>
+          )}
         </div>
       </div>
 
       {/* Improvements */}
       <div className="space-y-4">
         <h3 className="text-lg font-semibold text-white flex items-center">
-          <Zap className="w-5 h-5 text-yellow-400 mr-2" />
+          <AlertTriangle className="w-5 h-5 text-orange-400 mr-2" />
           Areas for Improvement
         </h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {improvements.slice(0, is_premium ? improvements.length : 2).map((improvement, index) => (
-            <motion.div
-              key={index}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: (index + 2) * 0.1 }}
-              className="flex items-start p-4 bg-yellow-900/20 border border-yellow-800/30 rounded-lg"
-            >
-              <AlertTriangle className="w-5 h-5 text-yellow-400 mt-0.5 mr-3 flex-shrink-0" />
-              <p className="text-yellow-100">{improvement}</p>
-            </motion.div>
-          ))}
+        <div className="space-y-3">
+          {safeImprovements.length > 0 ? (
+            safeImprovements.map((improvement, index) => {
+              // Skip empty strings or invalid entries
+              if (!improvement || typeof improvement !== 'string') return null;
+              return (
+                <div key={index} className="flex items-start">
+                  <div className="flex-shrink-0 mt-1">
+                    <div className="w-5 h-5 rounded-full bg-orange-500/20 flex items-center justify-center">
+                      <AlertTriangle className="w-3 h-3 text-orange-400" />
+                    </div>
+                  </div>
+                  <p className="ml-3 text-gray-300">{improvement.trim()}</p>
+                </div>
+              );
+            })
+          ) : (
+            <p className="text-gray-400">No specific improvements suggested for the code.</p>
+          )}
         </div>
       </div>
 

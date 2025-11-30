@@ -163,22 +163,88 @@ Format your response with clear sections for each part.`;
       const evaluationText = response.text();
 
       // Parse the evaluation
-      const scoreMatch = evaluationText.match(/\b\d+(\.\d+)?\b/);
-      const score = scoreMatch ? parseFloat(scoreMatch[0]) : 5.0;
+      console.log('AI Response:', evaluationText);
+      
+      // Extract score - look for patterns like "6/10" or "Score: 6" or "6 out of 10"
+      let score = 5.0; // Default score
+      
+      // First try to find score in markdown format like "**6/10**"
+      const markdownScoreMatch = evaluationText.match(/\*\*(\d+(?:\.\d+)?)\s*\/\s*10\*\*/i);
+      if (markdownScoreMatch) {
+        const scoreValue = parseFloat(markdownScoreMatch[1]);
+        if (!isNaN(scoreValue)) {
+          score = Math.max(1, Math.min(10, scoreValue));
+        }
+      } else {
+        // Fallback to more general pattern matching
+        const scoreMatch = evaluationText.match(/(?:score|rating)[:\s]*(\d+(?:\.\d+)?)(?:\s*\/\s*10)?/i) || 
+                          evaluationText.match(/(\d+(?:\.\d+)?)\s*(?:\/|out of)\s*10/i);
+        
+        if (scoreMatch) {
+          const scoreValue = parseFloat(scoreMatch[1]);
+          if (!isNaN(scoreValue)) {
+            score = Math.max(1, Math.min(10, scoreValue));
+          }
+        }
+      }
+      
+      console.log('Parsed score:', score);
 
+      // Extract strengths and improvements with more robust parsing
       const strengths = [];
       const improvements = [];
       
-      // Simple parsing - adjust based on Gemini's response format
-      const strengthMatch = evaluationText.match(/strengths?:([\s\S]*?)(?=\n\s*\d+\.|\n\s*Areas|\n\s*Suggestions|$)/i);
-      if (strengthMatch) {
-        strengths.push(...strengthMatch[1].split('\n').filter(line => line.trim()));
+      // Try to find strengths section - looking for markdown headers or numbered sections
+      const strengthSections = evaluationText.split(/##?\s*\d*\.?\s*(?:strengths?|pros?):?/i);
+      if (strengthSections.length > 1) {
+        const strengthContent = strengthSections[1].split(/##?\s*\d*\.?\s*(?:improvements?|areas? for improvement|cons?):?/i)[0];
+        const strengthItems = strengthContent
+          .split(/\n\s*[-•*]\s*/)
+          .map(item => item.trim())
+          .filter(item => item.length > 0 && !item.match(/^\s*[-=*_]{3,}\s*$/));
+        
+        if (strengthItems.length > 0) {
+          strengths.push(...strengthItems);
+        }
       }
 
-      const improvementMatch = evaluationText.match(/improvements?:([\s\S]*?)(?=\n\s*\d+\.|\n\s*Suggestions|$)/i);
-      if (improvementMatch) {
-        improvements.push(...improvementMatch[1].split('\n').filter(line => line.trim()));
+      // Try to find improvements section - looking for markdown headers or numbered sections
+      const improvementSections = evaluationText.split(/##?\s*\d*\.?\s*(?:improvements?|areas? for improvement|cons?):?/i);
+      if (improvementSections.length > 1) {
+        const improvementContent = improvementSections[1].split(/##?\s*\d*\.?\s*(?:suggestions?|recommendations?|conclusion):?/i)[0];
+        const improvementItems = improvementContent
+          .split(/\n\s*[-•*]\s*/)
+          .map(item => item.trim())
+          .filter(item => item.length > 0 && !item.match(/^\s*[-=*_]{3,}\s*$/));
+        
+        if (improvementItems.length > 0) {
+          improvements.push(...improvementItems);
+        }
       }
+
+      // Fallback if no strengths/improvements found in structured format
+      if (strengths.length === 0) {
+        // Try to extract any bullet points that might indicate strengths
+        const potentialStrengths = evaluationText.match(/[-•*]\s*([^\n]+)(?=\n[-•*]|$)/gi);
+        if (potentialStrengths && potentialStrengths.length > 0) {
+          strengths.push(...potentialStrengths.map(s => s.replace(/^[-•*]\s*/, '').trim()));
+        } else {
+          strengths.push('No specific strengths identified in the code');
+        }
+      }
+      
+      if (improvements.length === 0) {
+        // Look for common improvement indicators if no structured section found
+        const potentialImprovements = evaluationText.match(/(?:improve|consider|recommend|suggest|better|should|avoid)[^.!?]*[.!?]/gi);
+        if (potentialImprovements && potentialImprovements.length > 0) {
+          improvements.push(...potentialImprovements.map(i => i.trim()));
+        } else {
+          improvements.push('No specific improvements suggested for the code');
+        }
+      }
+
+      console.log('Strengths:', strengths);
+      console.log('Improvements:', improvements);
 
       // Save evaluation to database
       const { data: evaluationData, error: evalError } = await supabase
@@ -190,6 +256,7 @@ Format your response with clear sections for each part.`;
             title: title || 'Untitled',
             description: description || '',
             score: score,
+            timestamp: new Date().toISOString(),
             strengths: strengths.length ? strengths : ['No specific strengths identified'],
             improvements: improvements.length ? improvements : ['No specific improvements suggested'],
             full_evaluation: evaluationText,
