@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { createContext, useContext, useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 
 const AppContext = createContext();
@@ -9,57 +9,31 @@ export const useAppContext = () => {
 
 export const AppProvider = ({ children }) => {
   const [user, setUser] = useState(null);
-  const [session, setSession] = useState(null);
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  const fetchUserProfile = useCallback(async (userId) => {
+  const fetchUserProfile = async (userId) => {
     if (!userId) {
       setProfile(null);
       return null;
     }
     
     try {
-      // Try to get the profile with retry logic
-      const maxRetries = 3;
-      let retryCount = 0;
-      let lastError = null;
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .single();
+        
+      if (error) throw error;
       
-      while (retryCount < maxRetries) {
-        try {
-          const { data, error } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', userId)
-            .single();
-            
-          if (error) throw error;
-          
-          if (data) {
-            setProfile(data);
-            return data;
-          }
-          
-          // If we get here, the profile doesn't exist yet
-          // Wait a bit for the trigger to create it
-          await new Promise(resolve => setTimeout(resolve, 500));
-          retryCount++;
-          
-        } catch (error) {
-          lastError = error;
-          // If it's a 406 error (not found), the profile might not exist yet
-          if (error.code === 'PGRST116') {
-            await new Promise(resolve => setTimeout(resolve, 500));
-            retryCount++;
-          } else {
-            throw error;
-          }
-        }
+      if (data) {
+        setProfile(data);
+        return data;
       }
       
-      // If we've exhausted retries and still no profile, create one manually
-      console.log('Profile not found after retries, creating manually');
+      // If profile doesn't exist, create a default one
       const { data: newProfile, error: createError } = await supabase
         .from('profiles')
         .insert({ id: userId, is_premium: false })
@@ -73,93 +47,78 @@ export const AppProvider = ({ children }) => {
       
     } catch (error) {
       console.error('Error in fetchUserProfile:', error);
-      setError(error.message);
       return null;
     }
-  }, []);
+  };
+
+  const signIn = async (email, password) => {
+    try {
+      setLoading(true);
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (error) throw error;
+      return { success: true };
+    } catch (error) {
+      setError(error.message);
+      return { success: false, error };
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const signOut = async () => {
+    try {
+      await supabase.auth.signOut();
+      setUser(null);
+      setProfile(null);
+      return { success: true };
+    } catch (error) {
+      console.error('Error signing out:', error);
+      return { success: false, error };
+    }
+  };
 
   useEffect(() => {
-    let isMounted = true;
-    let subscription;
-    
-    const getInitialSession = async () => {
-      try {
-        // Get initial session without setting loading to true
-        const { data: { session }, error } = await supabase.auth.getSession();
-        
-        if (error) throw error;
-        
-        if (isMounted) {
-          setSession(session);
-          setUser(session?.user ?? null);
-          
-          if (session?.user) {
-            // Don't block UI while fetching profile
-            fetchUserProfile(session.user.id).catch(error => {
-              console.error('Error in initial profile fetch:', error);
-            });
-          }
-        }
-      } catch (error) {
-        console.error('Error getting initial session:', error);
-        if (isMounted) {
-          setError(error.message);
-        }
-      } finally {
-        if (isMounted) {
-          setLoading(false);
-        }
-      }
-    };
-
-    // Start with loading true only if we don't have a session in local storage
-    const hasSession = localStorage.getItem('supabase.auth.token');
-    setLoading(!hasSession);
-    
-    getInitialSession();
-
-    // Set up auth state listener
-    const { data } = supabase.auth.onAuthStateChange(
+    // Set up the auth state change listener
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        if (!isMounted) return;
+        console.log('Auth state changed:', event);
         
-        try {
-          console.log('Auth state changed:', event);
-          setSession(session);
-          setUser(session?.user ?? null);
-          
-          if (session?.user) {
-            console.log('User authenticated, fetching profile...');
-            try {
-              await fetchUserProfile(session.user.id);
-            } catch (profileError) {
-              console.error('Error in profile fetch:', profileError);
-            }
-          } else {
-            console.log('No user session');
-            setProfile(null);
-          }
-        } catch (error) {
-          console.error('Error in auth state change:', error);
-          setError(error.message);
-        } finally {
-          if (isMounted) {
-            setLoading(false);
-          }
+        if (session?.user) {
+          setUser(session.user);
+          fetchUserProfile(session.user.id).catch(console.error);
+        } else {
+          setUser(null);
+          setProfile(null);
         }
       }
     );
-    
-    subscription = data?.subscription;
 
-    return () => {
-      isMounted = false;
-      if (subscription?.unsubscribe) {
-        subscription.unsubscribe();
+    // Check initial session
+    const checkSession = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user) {
+          setUser(session.user);
+          await fetchUserProfile(session.user.id);
+        }
+      } catch (error) {
+        console.error('Error checking session:', error);
+      } finally {
+        setLoading(false);
       }
     };
-  }, [fetchUserProfile]);
-  
+
+    checkSession();
+
+    return () => {
+      subscription?.unsubscribe();
+    };
+  }, []);
+
   const updatePremiumStatus = async (userId, isPremium) => {
     try {
       const { data, error } = await supabase
@@ -251,42 +210,10 @@ export const AppProvider = ({ children }) => {
       console.error('Signup error:', error);
       setError(error.message);
       return { success: false, error };
-    }
-  };
-
-  const signIn = async (email, password) => {
-    try {
-      setError(null);
-      setLoading(true);
-      
-      const { data, error: signInError } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-      
-      if (signInError) throw signInError;
-      return { success: true, data };
-    } catch (error) {
-      setError(error.message);
-      return { success: false, error };
-    } finally {
       setLoading(false);
     }
   };
 
-  const signOut = async () => {
-    try {
-      setLoading(true);
-      const { error } = await supabase.auth.signOut();
-      if (error) throw error;
-      return { success: true };
-    } catch (error) {
-      setError(error.message);
-      return { success: false, error };
-    } finally {
-      setLoading(false);
-    }
-  };
 
   // Function to evaluate code using AI
   const evaluateCode = async (code, language) => {
@@ -325,7 +252,6 @@ export const AppProvider = ({ children }) => {
 
   const value = {
     user,
-    session,
     profile,
     loading,
     error,
