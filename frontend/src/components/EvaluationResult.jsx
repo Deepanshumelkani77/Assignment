@@ -1,13 +1,62 @@
-import React, { useState, useContext } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Check, AlertTriangle, Zap, Loader2, Lock, Star } from 'lucide-react';
+import { Check, AlertTriangle, Zap, Loader2, Lock, Star, Code as CodeIcon } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-// Payment handling moved to Node.js server
+import axios from 'axios';
 import { useAppContext } from '../context/AppContext';
+import { supabase } from '../lib/supabaseClient';
+
+// Function to load Razorpay script
+const loadRazorpay = () => {
+  // Check if already loaded
+  if (window.Razorpay) {
+    return Promise.resolve(window.Razorpay);
+  }
+
+  return new Promise((resolve, reject) => {
+    // Try loading with a different approach if the first one fails
+    const loadScript = (src, onSuccess, onError) => {
+      const script = document.createElement('script');
+      script.src = src;
+      script.async = true;
+      script.onload = onSuccess;
+      script.onerror = onError;
+      document.body.appendChild(script);
+    };
+
+    const onError = (error) => {
+      console.error('Failed to load Razorpay:', error);
+      reject(new Error('Payment processor could not be loaded. Please disable ad blockers and try again.'));
+    };
+
+    const onLoad = () => {
+      if (window.Razorpay) {
+        resolve(window.Razorpay);
+      } else {
+        onError('Razorpay not found after script load');
+      }
+    };
+
+    // Try loading with cache buster
+    loadScript(
+      `https://checkout.razorpay.com/v1/checkout.js?t=${Date.now()}`,
+      onLoad,
+      () => {
+        // If first attempt fails, try with a different CDN
+        loadScript(
+          'https://checkout.razorpay.com/v1/checkout.js',
+          onLoad,
+          onError
+        );
+      }
+    );
+  });
+};
 
 const EvaluationResult = ({ evaluation, onUpgrade }) => {
   const [showFullReport, setShowFullReport] = useState(false);
   const { user, profile } = useAppContext();
+  const navigate = useNavigate();
   
   if (!evaluation) return null;
   
@@ -51,9 +100,106 @@ const EvaluationResult = ({ evaluation, onUpgrade }) => {
   const { refreshProfile } = useAppContext();
   const [isProcessing, setIsProcessing] = useState(false);
 
-  const handleUpgrade = () => {
-    // Redirect to your Node.js server's payment page
-    window.location.href = 'http://localhost:3001/payment';
+  const handleUpgrade = async () => {
+    if (!user) {
+      navigate('/login', { state: { from: '/evaluate' } });
+      return;
+    }
+
+    try {
+      setIsProcessing(true);
+      const amount = 299; // 299 INR in paise
+      
+      // Load Razorpay script
+      const Razorpay = await loadRazorpay();
+      
+      // Create order in your backend
+      const res = await axios.post(
+        `${import.meta.env.VITE_BACKEND_URL}/create-order`, 
+        { amount: amount },
+        {
+          headers: {
+            'Content-Type': 'application/json',
+          }
+        }
+      );
+      
+      if (!res.data || !res.data.id) {
+        throw new Error('Invalid response from payment server');
+      }
+      
+      const options = {
+        key: import.meta.env.VITE_RAZORPAY_KEY_ID,
+        amount: res.data.amount,
+        currency: "INR",
+        name: "Code Evaluation Pro",
+        description: "Premium Evaluation Access",
+        order_id: res.data.id,
+        handler: async function (response) {
+          try {
+            // Update user's premium status in profiles table
+            const { data: profileData, error: profileError } = await supabase
+              .from('profiles')
+              .update({ is_premium: true })
+              .eq('id', user.id)
+              .select();
+
+            if (profileError) throw profileError;
+
+            // Update evaluation with premium status if evaluation exists
+            if (evaluation?.id) {
+              const { error: evalError } = await supabase
+                .from('evaluations')
+                .update({ 
+                  is_premium: true
+                })
+                .eq('id', evaluation.id);
+
+              if (evalError) throw evalError;
+            }
+            
+            // Refresh user profile to get updated premium status
+            await refreshProfile();
+            
+            // Show success message
+            alert('Payment successful! You now have access to premium features.');
+            window.location.reload();
+            
+          } catch (error) {
+            console.error("Error processing payment:", error);
+            alert("Payment succeeded, but there was an error updating your account. Please contact support.");
+          } finally {
+            setIsProcessing(false);
+          }
+        },
+        prefill: {
+          name: user?.user_metadata?.full_name || 'Customer',
+          email: user?.email || '',
+        },
+        theme: {
+          color: "#4F46E5",
+        },
+        modal: {
+          ondismiss: () => {
+            setIsProcessing(false);
+          }
+        }
+      };
+
+      const razor = new Razorpay(options);
+      razor.open();
+      
+      razor.on('payment.failed', function (response) {
+        console.error('Payment failed:', response.error);
+        alert(`Payment failed: ${response.error.description || 'Please try again'}`);
+        setIsProcessing(false);
+      });
+      
+    } catch (error) {
+      console.error("Error creating payment order:", error);
+      alert(`Payment failed: ${error.message || 'Please try again'}`);
+      setIsProcessing(false);
+    }
   };
 
   return (
