@@ -37,21 +37,13 @@ const EvaluationResult = ({ evaluation, onUpgrade }) => {
   }
   
   // Ensure strengths and improvements are arrays
-  const safeStrengths = isUserPremium 
-    ? (Array.isArray(strengths) ? strengths : [strengths || 'No specific strengths identified'])
-    : [
-        'Upgrade to premium to see all strengths',
-        'Detailed analysis available with premium',
-        'Get personalized recommendations with premium'
-      ];
+  const safeStrengths = Array.isArray(strengths) 
+    ? strengths 
+    : [strengths || 'No specific strengths identified'];
       
-  const safeImprovements = isUserPremium 
-    ? (Array.isArray(improvements) ? improvements : [improvements || 'No specific improvements suggested'])
-    : [
-        'Detailed improvement suggestions available with premium',
-        'Get personalized feedback with premium',
-        'Upgrade to unlock all recommendations'
-      ];
+  const safeImprovements = Array.isArray(improvements) 
+    ? improvements 
+    : [improvements || 'No specific improvements suggested'];
 
 
   const handleUpgrade = () => {
