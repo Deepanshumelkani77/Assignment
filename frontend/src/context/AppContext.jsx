@@ -21,66 +21,139 @@ export const AppProvider = ({ children }) => {
     }
     
     try {
-      const { data, error } = await supabase
+      // Try to get the profile with retry logic
+      const maxRetries = 3;
+      let retryCount = 0;
+      let lastError = null;
+      
+      while (retryCount < maxRetries) {
+        try {
+          const { data, error } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', userId)
+            .single();
+            
+          if (error) throw error;
+          
+          if (data) {
+            setProfile(data);
+            return data;
+          }
+          
+          // If we get here, the profile doesn't exist yet
+          // Wait a bit for the trigger to create it
+          await new Promise(resolve => setTimeout(resolve, 500));
+          retryCount++;
+          
+        } catch (error) {
+          lastError = error;
+          // If it's a 406 error (not found), the profile might not exist yet
+          if (error.code === 'PGRST116') {
+            await new Promise(resolve => setTimeout(resolve, 500));
+            retryCount++;
+          } else {
+            throw error;
+          }
+        }
+      }
+      
+      // If we've exhausted retries and still no profile, create one manually
+      console.log('Profile not found after retries, creating manually');
+      const { data: newProfile, error: createError } = await supabase
         .from('profiles')
-        .select('*')
-        .eq('id', userId)
+        .insert({ id: userId, is_premium: false })
+        .select()
         .single();
-
-      if (error) throw error;
-      setProfile(data);
-      return data;
+        
+      if (createError) throw createError;
+      
+      setProfile(newProfile);
+      return newProfile;
+      
     } catch (error) {
-      console.error('Error fetching user profile:', error);
+      console.error('Error in fetchUserProfile:', error);
       setError(error.message);
       return null;
     }
   }, []);
 
   useEffect(() => {
-    const getSession = async () => {
+    let isMounted = true;
+    let subscription;
+    
+    const getInitialSession = async () => {
       try {
+        // Get initial session without setting loading to true
         const { data: { session }, error } = await supabase.auth.getSession();
         
         if (error) throw error;
         
-        setSession(session);
-        setUser(session?.user ?? null);
-        
-        if (session?.user) {
-          await fetchUserProfile(session.user.id);
-        }
-      } catch (error) {
-        console.error('Error getting session:', error);
-        setError(error.message);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    getSession();
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        try {
+        if (isMounted) {
           setSession(session);
           setUser(session?.user ?? null);
           
           if (session?.user) {
-            await fetchUserProfile(session.user.id);
+            // Don't block UI while fetching profile
+            fetchUserProfile(session.user.id).catch(error => {
+              console.error('Error in initial profile fetch:', error);
+            });
+          }
+        }
+      } catch (error) {
+        console.error('Error getting initial session:', error);
+        if (isMounted) {
+          setError(error.message);
+        }
+      } finally {
+        if (isMounted) {
+          setLoading(false);
+        }
+      }
+    };
+
+    // Start with loading true only if we don't have a session in local storage
+    const hasSession = localStorage.getItem('supabase.auth.token');
+    setLoading(!hasSession);
+    
+    getInitialSession();
+
+    // Set up auth state listener
+    const { data } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        if (!isMounted) return;
+        
+        try {
+          console.log('Auth state changed:', event);
+          setSession(session);
+          setUser(session?.user ?? null);
+          
+          if (session?.user) {
+            console.log('User authenticated, fetching profile...');
+            try {
+              await fetchUserProfile(session.user.id);
+            } catch (profileError) {
+              console.error('Error in profile fetch:', profileError);
+            }
           } else {
+            console.log('No user session');
             setProfile(null);
           }
         } catch (error) {
           console.error('Error in auth state change:', error);
           setError(error.message);
         } finally {
-          setLoading(false);
+          if (isMounted) {
+            setLoading(false);
+          }
         }
       }
     );
+    
+    subscription = data?.subscription;
 
     return () => {
+      isMounted = false;
       if (subscription?.unsubscribe) {
         subscription.unsubscribe();
       }
