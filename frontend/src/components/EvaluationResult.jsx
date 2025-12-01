@@ -216,8 +216,8 @@ const EvaluationResult = ({ evaluation, onUpgrade }) => {
       {/* Score */}
       <div className="bg-gray-800/50 border border-gray-700 rounded-xl p-6">
         <div className="flex flex-col items-center">
-          <div className="relative">
-            <svg className="w-32 h-32" viewBox="0 0 36 36">
+          <div className="relative w-32 h-32 flex items-center justify-center">
+            <svg className="absolute w-full h-full" viewBox="0 0 36 36">
               <path
                 d="M18 2.0845
                   a 15.9155 15.9155 0 0 1 0 31.831
@@ -237,33 +237,22 @@ const EvaluationResult = ({ evaluation, onUpgrade }) => {
                 strokeLinecap="round"
                 style={{ transition: 'stroke-dasharray 0.6s ease 0s, stroke 0.6s ease' }}
               />
-              <text
-                x="18"
-                y="20.35"
-                className="text-3xl font-bold"
-                fill="#ffffff"
-                textAnchor="middle"
-                dominantBaseline="middle"
-              >
-                {displayScore}
-              </text>
-              <text
-                x="18"
-                y="25"
-                className="text-xs font-medium"
-                fill="#94a3b8"
-                textAnchor="middle"
-              >
-                / 10
-              </text>
             </svg>
-            <div className="absolute inset-0 flex items-center justify-center">
+            
+            <div className="relative z-10 text-center">
+              <div className="text-3xl font-bold text-white">
+                {displayScore}
+                <span className="text-base font-medium text-gray-400 ml-1">/10</span>
+              </div>
+            </div>
+            
+            <div className="absolute -bottom-2 left-1/2 transform -translate-x-1/2">
               {score > 8 ? (
-                <Star className="w-8 h-8 text-yellow-400" fill="currentColor" />
+                <Star className="w-6 h-6 text-yellow-400" fill="currentColor" />
               ) : score > 6 ? (
-                <Check className="w-8 h-8 text-green-400" />
+                <Check className="w-6 h-6 text-green-400" />
               ) : (
-                <AlertTriangle className="w-8 h-8 text-orange-400" />
+                <AlertTriangle className="w-6 h-6 text-orange-400" />
               )}
             </div>
           </div>
