@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Code as CodeIcon, Loader2 } from 'lucide-react';
+import { Code as CodeIcon, Loader2, X } from 'lucide-react';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { useAppContext } from '../context/AppContext';
 import EvaluationResult from './EvaluationResult';
@@ -171,25 +171,40 @@ Format your response with clear sections for each part.`;
       console.log('Strengths:', strengths);
       console.log('Improvements:', improvements);
 
-      // Save evaluation to database
+      // First, create a task record
+      const { data: taskData, error: taskError } = await supabase
+        .from('tasks')
+        .insert({
+          user_id: user.id,
+          title: title || 'Untitled',
+          description: description || '',
+          code: codeToEvaluate,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        })
+        .select()
+        .single();
+
+      if (taskError) throw taskError;
+
+      // Then create the evaluation record with the task_id
       const { data: evaluationData, error: evalError } = await supabase
         .from('evaluations')
-        .insert([
-          {
-            task_id: null,
-            code: codeToEvaluate,
-            title: title || 'Untitled',
-            description: description || '',
-            score: score,
-            timestamp: new Date().toISOString(),
-            strengths: strengths.length ? strengths : ['No specific strengths identified'],
-            improvements: improvements.length ? improvements : ['No specific improvements suggested'],
-            full_evaluation: evaluationText,
-            is_premium: true,
-            model_used: 'gemini-pro',
-            user_id: user.id
-          },
-        ])
+        .insert({
+          task_id: taskData.id,
+          user_id: user.id,
+          code: codeToEvaluate,
+          title: title || 'Untitled',
+          description: description || '',
+          score: score,
+          timestamp: new Date().toISOString(),
+          strengths: strengths.length ? strengths : ['No specific strengths identified'],
+          improvements: improvements.length ? improvements : ['No specific improvements suggested'],
+          full_evaluation: evaluationText,
+          is_premium: true,
+          model_used: 'gemini-pro',
+          created_at: new Date().toISOString()
+        })
         .select()
         .single();
 
