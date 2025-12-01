@@ -108,7 +108,7 @@ const EvaluationResult = ({ evaluation, onUpgrade }) => {
 
     try {
       setIsProcessing(true);
-      const amount = 299; // 299 INR in paise
+      const amount = 1; // 1 INR in paise
       
       // Load Razorpay script
       const Razorpay = await loadRazorpay();
@@ -325,27 +325,46 @@ const EvaluationResult = ({ evaluation, onUpgrade }) => {
         </div>
       </div>
 
-      {/* Upgrade Button */}
+      {/* Upgrade Buttons */}
       {!isUserPremium ? (
-        <div className="mt-6 text-center">
-          <button
-            onClick={handleUpgrade}
-            disabled={isProcessing}
-            className={`inline-flex items-center justify-center px-6 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all ${isProcessing ? 'opacity-75 cursor-not-allowed' : ''}`}
-          >
-            {isProcessing ? (
-              <>
-                <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                Processing...
-              </>
-            ) : (
-              <>
-                <Zap className="w-5 h-5 mr-2" />
-                Upgrade Now (₹299)
-              </>
-            )}
-          </button>
-          <p className="mt-2 text-sm text-blue-300">Get detailed analysis and recommendations</p>
+        <div className="mt-6 space-y-4">
+          <div className="text-center">
+            <button
+              onClick={handleUpgrade}
+              disabled={isProcessing}
+              className={`w-full sm:w-auto inline-flex items-center justify-center px-6 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all ${isProcessing ? 'opacity-75 cursor-not-allowed' : ''}`}
+            >
+              {isProcessing ? (
+                <>
+                  <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                  Processing...
+                </>
+              ) : (
+                <>
+                  <Zap className="w-5 h-5 mr-2" />
+                  Quick Upgrade (₹1)
+                </>
+              )}
+            </button>
+            <p className="mt-2 text-sm text-blue-300">Quick upgrade with one-click payment</p>
+          </div>
+          
+          <div className="relative flex items-center">
+            <div className="flex-grow border-t border-gray-700"></div>
+            <span className="flex-shrink mx-4 text-gray-400 text-sm">OR</span>
+            <div className="flex-grow border-t border-gray-700"></div>
+          </div>
+          
+          <div className="text-center">
+            <button
+              onClick={() => navigate('/upgrade')}
+              className="w-full sm:w-auto inline-flex items-center justify-center px-6 py-3 border border-gray-700 text-base font-medium rounded-md shadow-sm text-white bg-gray-800 hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all"
+            >
+              <Star className="w-5 h-5 mr-2 text-yellow-400" />
+              View All Plans
+            </button>
+            <p className="mt-2 text-sm text-gray-400">Explore all premium features and plans</p>
+          </div>
         </div>
       ) : (
         <div className="mt-6 text-center">

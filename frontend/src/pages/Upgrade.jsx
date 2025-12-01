@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAppContext } from '../context/AppContext';
 import { Loader2, Check, Zap, Star } from 'lucide-react';
@@ -51,8 +51,24 @@ const loadRazorpay = () => {
 const Upgrade = () => {
   const { user, profile, updatePremiumStatus } = useAppContext();
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
+    const [error, setError] = useState(null);
+  const [showSuccess, setShowSuccess] = useState(false);
   const navigate = useNavigate();
+
+  // Check for success state on initial load (for page refreshes)
+  useEffect(() => {
+    const success = localStorage.getItem('upgradeSuccess');
+    if (success && profile?.is_premium) {
+      setShowSuccess(true);
+      localStorage.removeItem('upgradeSuccess');
+    }
+  }, [profile?.is_premium]);
+
+  // Handle navigation to dashboard
+  const handleGoToDashboard = () => {
+    setShowSuccess(false);
+    navigate('/dashboard');
+  };
 
   const handleUpgrade = async () => {
     if (!user) {
@@ -64,7 +80,7 @@ const Upgrade = () => {
       setLoading(true);
       setError(null);
       
-      const amount = 299; // 299 INR in paise
+      const amount = 1; // 1 INR in paise
       
       // Load Razorpay script
       const Razorpay = await loadRazorpay();
@@ -106,14 +122,12 @@ const Upgrade = () => {
             const { data: { user: updatedUser }, error: userError } = await supabase.auth.getUser();
             if (userError) throw userError;
             
-            // Update the profile in context
+            // Update the profile in context and show success message
             await updatePremiumStatus(true);
+            setShowSuccess(true);
             
-            // Show success message
-            alert('Payment successful! You now have access to all premium features.');
-            
-            // Refresh the page to show updated premium status
-            window.location.reload();
+            // Clean up any existing success state
+            localStorage.removeItem('upgradeSuccess');
           } catch (error) {
             console.error('Error updating premium status:', error);
             alert('Payment was successful but there was an error updating your account. Please contact support.');
@@ -151,14 +165,14 @@ const Upgrade = () => {
     }
   };
 
-  if (profile?.is_premium) {
+  if (profile?.is_premium || showSuccess) {
     return (
       <div className="min-h-screen bg-gray-900 text-white p-6">
         <div className="max-w-4xl mx-auto text-center">
           <h1 className="text-3xl font-bold mb-6">You're Already a Premium Member!</h1>
           <p className="text-xl mb-8">Thank you for supporting us. Enjoy all premium features.</p>
           <button
-            onClick={() => navigate('/dashboard')}
+            onClick={handleGoToDashboard}
             className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg transition duration-200"
           >
             Go to Dashboard

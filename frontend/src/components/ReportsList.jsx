@@ -152,7 +152,7 @@ const ReportsList = () => {
 
     try {
       setIsProcessing(true);
-      const amount = 299; // 299 INR in paise
+      const amount = 1; // 1 INR in paise
       
       // Load Razorpay script
       const Razorpay = await loadRazorpay();
