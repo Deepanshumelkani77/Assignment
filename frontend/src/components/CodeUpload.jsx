@@ -1,6 +1,6 @@
-import React, { useState, useRef } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Upload, Code as CodeIcon, X, Loader2 } from 'lucide-react';
+import React, { useState } from 'react';
+import { motion } from 'framer-motion';
+import { Code as CodeIcon, Loader2 } from 'lucide-react';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { useAppContext } from '../context/AppContext';
 import EvaluationResult from './EvaluationResult';
@@ -13,50 +13,13 @@ const CodeUpload = () => {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [code, setCode] = useState('');
-  const [file, setFile] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [evaluation, setEvaluation] = useState(null);
-  const fileInputRef = useRef(null);
   const { user } = useAppContext();
-
-  const handleFileChange = (e) => {
-    const selectedFile = e.target.files[0];
-    if (selectedFile) {
-      if (selectedFile.size > 5 * 1024 * 1024) {
-        setError('File size should be less than 5MB');
-        return;
-      }
-      setFile(selectedFile);
-      setCode(''); // Clear code input if file is selected
-    }
-  };
-
-  const handleDragOver = (e) => {
-    e.preventDefault();
-  };
-
-  const handleDrop = (e) => {
-    e.preventDefault();
-    const droppedFile = e.dataTransfer.files[0];
-    if (droppedFile) {
-      if (droppedFile.size > 5 * 1024 * 1024) {
-        setError('File size should be less than 5MB');
-        return;
-      }
-      setFile(droppedFile);
-      setCode(''); // Clear code input if file is dropped
-    }
-  };
-
-  const readFileContent = (file) => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = (event) => resolve(event.target.result);
-      reader.onerror = (error) => reject(error);
-      reader.readAsText(file);
-    });
-  };
+  
+  // Character limit for code input
+  const MAX_CODE_LENGTH = 5000;
 
   const evaluateCode = async (codeContent) => {
     // In a real app, you would call your backend API here
@@ -85,51 +48,18 @@ const CodeUpload = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setError('');
     
-    if ((!code && !file) || !title.trim()) {
-      setError('Please provide a title and either paste code or upload a file');
+    if (!title.trim() || !description.trim() || !code.trim()) {
+      setError('Please fill in all fields');
       return;
     }
 
     setIsLoading(true);
-    setError('');
     setEvaluation(null);
 
     try {
-      let codeContent = code;
-      let filePath = null;
-
-      // If file is uploaded, read its content
-      if (file) {
-        codeContent = await readFileContent(file);
-        
-        // Upload file to Supabase storage
-        const fileExt = file.name.split('.').pop();
-        const fileName = `${user.id}-${Date.now()}.${fileExt}`;
-        const { error: uploadError } = await supabase.storage
-          .from('code-submissions')
-          .upload(fileName, file);
-
-        if (uploadError) throw uploadError;
-        filePath = fileName;
-      }
-
-      // Create task in database
-      const { data: task, error: taskError } = await supabase
-        .from('tasks')
-        .insert([
-          {
-            user_id: user.id,
-            title,
-            description: description || null,
-            code: codeContent,
-            file_path: filePath,
-          },
-        ])
-        .select()
-        .single();
-
-      if (taskError) throw taskError;
+      const codeToEvaluate = code;
 
       // Evaluate code using Gemini 2.5 Flash Preview
       const model = genAI.getGenerativeModel({ 
@@ -143,7 +73,7 @@ const CodeUpload = () => {
       });
       const prompt = `You are an expert code reviewer. Please evaluate the following code for quality, best practices, and potential improvements:
 
-${codeContent}
+${codeToEvaluate}
 
 Provide a detailed evaluation including:
 1. A score from 1-10
@@ -246,8 +176,8 @@ Format your response with clear sections for each part.`;
         .from('evaluations')
         .insert([
           {
-            task_id: task.id,
-            code: codeContent,
+            task_id: null,
+            code: codeToEvaluate,
             title: title || 'Untitled',
             description: description || '',
             score: score,
@@ -281,7 +211,6 @@ Format your response with clear sections for each part.`;
     }
   };
 
-
   if (evaluation) {
     return (
       <div className="space-y-6">
@@ -293,7 +222,6 @@ Format your response with clear sections for each part.`;
             onClick={() => {
               setEvaluation(null);
               setCode('');
-              setFile(null);
               setTitle('');
               setDescription('');
             }}
@@ -335,7 +263,7 @@ Format your response with clear sections for each part.`;
 
         <div>
           <label htmlFor="description" className="block text-sm font-medium text-gray-300 mb-1">
-            Description (Optional)
+            Description <span className="text-red-500">*</span>
           </label>
           <textarea
             id="description"
@@ -344,70 +272,41 @@ Format your response with clear sections for each part.`;
             rows="2"
             className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/30 transition-all"
             placeholder="Briefly describe what your code does..."
+            required
           />
         </div>
 
-        <div className="grid md:grid-cols-2 gap-6">
-          <div>
-            <div className="flex items-center justify-between mb-1">
-              <label className="text-sm font-medium text-gray-300">Upload File</label>
-              <span className="text-xs text-gray-500">Max 5MB</span>
-            </div>
-            <div
-              onDragOver={handleDragOver}
-              onDrop={handleDrop}
-              onClick={() => fileInputRef.current?.click()}
-              className="border-2 border-dashed border-gray-700 rounded-xl p-8 text-center cursor-pointer hover:border-blue-500/50 transition-colors"
-            >
-              <input
-                type="file"
-                ref={fileInputRef}
-                onChange={handleFileChange}
-                className="hidden"
-                accept=".js,.jsx,.ts,.tsx,.py,.java,.c,.cpp,.cs,.go,.rb,.php,.rs"
-              />
-              <div className="space-y-2">
-                <div className="mx-auto w-12 h-12 rounded-full bg-gray-800 flex items-center justify-center">
-                  <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                  </svg>
-                </div>
-                <p className="text-sm text-gray-400">
-                  {file ? file.name : 'Drag & drop a file or click to browse'}
-                </p>
-                <p className="text-xs text-gray-500">
-                  Supported: .js, .py, .java, .c, .cpp, etc.
-                </p>
-              </div>
-            </div>
+        <div className="space-y-2">
+          <label className="text-sm font-medium text-gray-300">Paste Code</label>
+          <div className="flex justify-between items-center">
+            <span className="text-xs text-gray-500">
+              {code.length}/{MAX_CODE_LENGTH} chars
+            </span>
+            {code.length > 0 && (
+              <button
+                type="button"
+                onClick={() => setCode('')}
+                className="text-xs text-red-400 hover:text-red-300"
+              >
+                Clear
+              </button>
+            )}
           </div>
-
-          <div>
-            <div className="flex items-center justify-between mb-1">
-              <label className="text-sm font-medium text-gray-300">Or Paste Code</label>
-              <span className="text-xs text-gray-500">
-                {code.length}/5000 chars
-              </span>
-            </div>
-            <textarea
-              value={code}
-              onChange={(e) => {
-                if (e.target.value.length <= 5000) {
-                  setCode(e.target.value);
-                  if (file) {
-                    setFile(null);
-                    if (fileInputRef.current) {
-                      fileInputRef.current.value = '';
-                    }
-                  }
-                }
-              }}
-              rows="10"
-              className="w-full px-4 py-3 font-mono text-sm bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/30 transition-all"
-              placeholder="Paste your code here..."
-              disabled={!!file}
-            />
-          </div>
+          <textarea
+            value={code}
+            onChange={(e) => {
+              if (e.target.value.length <= MAX_CODE_LENGTH) {
+                setCode(e.target.value);
+              }
+            }}
+            rows="10"
+            className="w-full px-4 py-3 font-mono text-sm bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/30 transition-all"
+            placeholder="Paste your code here..."
+            required
+          />
+          {code.length === MAX_CODE_LENGTH && (
+            <p className="text-xs text-red-400">Maximum character limit reached</p>
+          )}
         </div>
 
         {error && (
@@ -419,9 +318,9 @@ Format your response with clear sections for each part.`;
         <div className="pt-2">
           <button
             type="submit"
-            disabled={isLoading || (!code && !file) || !title.trim()}
+            disabled={isLoading || !code || !title.trim()}
             className={`w-full py-3 px-6 rounded-lg font-medium transition-all ${
-              isLoading || (!code && !file) || !title.trim()
+              isLoading || !code || !title.trim()
                 ? 'bg-gray-700 text-gray-500 cursor-not-allowed'
                 : 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white shadow-lg hover:shadow-xl'
             }`}

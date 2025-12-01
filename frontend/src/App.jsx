@@ -23,17 +23,24 @@ const App = () => {
   // Show loading spinner only if we're still loading and it's the initial load
   if (loading && isInitialLoad) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-900">
-        <div className="flex flex-col items-center">
-          <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-blue-500 mb-4"></div>
-          <p className="text-gray-300">Loading your workspace...</p>
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-black via-black/90 to-black/80">
+        <div className="flex flex-col items-center space-y-4">
+          <div className="relative">
+            <div className="absolute inset-0 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full blur-xl opacity-75 animate-pulse"></div>
+            <div className="relative flex items-center justify-center w-20 h-20 bg-black/80 rounded-full border border-gray-800">
+              <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+            </div>
+          </div>
+          <h2 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-400">
+            Loading your workspace...
+          </h2>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-900 text-white">
+    <div className="min-h-screen bg-gradient-to-br from-black via-black/90 to-black/80 text-gray-100">
       <Routes>
         <Route 
           path="/login" 
