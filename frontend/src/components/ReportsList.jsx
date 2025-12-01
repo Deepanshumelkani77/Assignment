@@ -101,9 +101,15 @@ const ReportsList = () => {
       setLoading(true);
       setError('');
 
+      if (!user) {
+        setLoading(false);
+        return;
+      }
+
       const { data, error: fetchError } = await supabase
         .from('evaluations')
         .select('*')
+        .eq('user_id', user.id)  // Only fetch reports for the current user
         .order('created_at', { ascending: false });
 
       if (fetchError) throw fetchError;

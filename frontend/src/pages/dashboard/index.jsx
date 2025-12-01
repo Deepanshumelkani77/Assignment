@@ -7,7 +7,7 @@ import Sidebar from '../../components/Sidebar';
 
 const Dashboard = () => {
   const [activeTab, setActiveTab] = useState('upload');
-  const { user, signOut } = useAppContext();
+  const { user, signOut, profile } = useAppContext();
 
   const renderContent = () => {
     switch (activeTab) {
@@ -27,6 +27,7 @@ const Dashboard = () => {
         setActiveTab={setActiveTab} 
         onSignOut={signOut}
         user={user}
+        profile={profile}
       />
       
       <main className="flex-1 overflow-y-auto p-6 md:p-8">

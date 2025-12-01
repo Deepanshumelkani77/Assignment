@@ -2,7 +2,7 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { NavLink } from 'react-router-dom';
 
-const Sidebar = ({ activeTab, setActiveTab, onSignOut, user }) => {
+const Sidebar = ({ activeTab, setActiveTab, onSignOut, user, profile }) => {
   const navItems = [
     { id: 'upload', icon: '📤', label: 'Upload Code' },
     { id: 'reports', icon: '📋', label: 'My Reports' },
@@ -55,7 +55,10 @@ const Sidebar = ({ activeTab, setActiveTab, onSignOut, user }) => {
             <p className="text-sm font-medium truncate">
               {user?.email || 'User'}
             </p>
-            <p className="text-xs text-gray-400">Free Plan</p>
+            <p className="text-xs text-gray-400">
+              {profile?.is_premium ? 'Premium Plan' : 'Free Plan'}
+              {profile?.is_premium && <span className="ml-1 text-yellow-400">★</span>}
+            </p>
           </div>
           <button
             onClick={onSignOut}
