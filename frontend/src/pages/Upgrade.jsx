@@ -1,7 +1,52 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAppContext } from '../context/AppContext';
-import { Loader2, Check, Zap } from 'lucide-react';
+import { Loader2, Check, Zap, Star } from 'lucide-react';
+import axios from 'axios';
+import { supabase } from '../lib/supabaseClient';
+
+// Function to load Razorpay script
+const loadRazorpay = () => {
+  if (window.Razorpay) {
+    return Promise.resolve(window.Razorpay);
+  }
+
+  return new Promise((resolve, reject) => {
+    const loadScript = (src, onSuccess, onError) => {
+      const script = document.createElement('script');
+      script.src = src;
+      script.async = true;
+      script.onload = onSuccess;
+      script.onerror = onError;
+      document.body.appendChild(script);
+    };
+
+    const onError = (error) => {
+      console.error('Failed to load Razorpay:', error);
+      reject(new Error('Payment processor could not be loaded. Please disable ad blockers and try again.'));
+    };
+
+    const onLoad = () => {
+      if (window.Razorpay) {
+        resolve(window.Razorpay);
+      } else {
+        onError('Razorpay not found after script load');
+      }
+    };
+
+    loadScript(
+      `https://checkout.razorpay.com/v1/checkout.js?t=${Date.now()}`,
+      onLoad,
+      () => {
+        loadScript(
+          'https://checkout.razorpay.com/v1/checkout.js',
+          onLoad,
+          onError
+        );
+      }
+    );
+  });
+};
 
 const Upgrade = () => {
   const { user, profile, updatePremiumStatus } = useAppContext();
@@ -9,14 +54,101 @@ const Upgrade = () => {
   const [error, setError] = useState(null);
   const navigate = useNavigate();
 
-  const handleUpgrade = (planId) => {
+  const handleUpgrade = async () => {
     if (!user) {
       navigate('/login', { state: { from: '/upgrade' } });
       return;
     }
 
-    // Redirect to Node.js server's payment page with plan ID
-    window.location.href = `http://localhost:3001/payment?plan=${planId}`;
+    try {
+      setLoading(true);
+      setError(null);
+      
+      const amount = 299; // 299 INR in paise
+      
+      // Load Razorpay script
+      const Razorpay = await loadRazorpay();
+      
+      // Create order in your backend
+      const res = await axios.post(
+        `${import.meta.env.VITE_BACKEND_URL}/create-order`, 
+        { amount: amount },
+        {
+          headers: {
+            'Content-Type': 'application/json',
+          }
+        }
+      );
+      
+      if (!res.data || !res.data.id) {
+        throw new Error('Invalid response from payment server');
+      }
+      
+      const options = {
+        key: import.meta.env.VITE_RAZORPAY_KEY_ID,
+        amount: res.data.amount,
+        currency: "INR",
+        name: "Code Evaluation Pro",
+        description: "Premium Evaluation Access",
+        order_id: res.data.id,
+        handler: async function (response) {
+          try {
+            setLoading(true);
+            // First, update the profile in the database
+            const { error: updateError } = await supabase
+              .from('profiles')
+              .update({ is_premium: true })
+              .eq('id', user.id);
+
+            if (updateError) throw updateError;
+            
+            // Then refresh the profile data
+            const { data: { user: updatedUser }, error: userError } = await supabase.auth.getUser();
+            if (userError) throw userError;
+            
+            // Update the profile in context
+            await updatePremiumStatus(true);
+            
+            // Show success message
+            alert('Payment successful! You now have access to all premium features.');
+            
+            // Refresh the page to show updated premium status
+            window.location.reload();
+          } catch (error) {
+            console.error('Error updating premium status:', error);
+            alert('Payment was successful but there was an error updating your account. Please contact support.');
+          } finally {
+            setLoading(false);
+          }
+        },
+        prefill: {
+          name: user.user_metadata?.full_name || '',
+          email: user.email || '',
+        },
+        theme: {
+          color: '#4F46E5',
+        },
+        modal: {
+          ondismiss: () => {
+            setLoading(false);
+          }
+        }
+      };
+
+      const rzp = new window.Razorpay(options);
+      rzp.open();
+      
+      rzp.on('payment.failed', function (response) {
+        console.error('Payment failed:', response.error);
+        setError(`Payment failed: ${response.error.description || 'Please try again'}`);
+        setLoading(false);
+      });
+      
+    } catch (err) {
+      console.error('Payment error:', err);
+      setError(err.message || 'Failed to process payment. Please try again.');
+      setLoading(false);
+    }
   };
 
   if (profile?.is_premium) {
@@ -110,17 +242,20 @@ const Upgrade = () => {
               </li>
             </ul>
             <button
-              onClick={() => handleUpgrade('premium')}
+              onClick={handleUpgrade}
               disabled={loading}
               className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg transition duration-200 flex items-center justify-center"
             >
               {loading ? (
-                <>
+                <span className="flex items-center">
                   <Loader2 className="animate-spin h-5 w-5 mr-2" />
                   Processing...
-                </>
+                </span>
               ) : (
-                'Upgrade to Premium'
+                <span className="flex items-center">
+                  <Star className="w-5 h-5 mr-2" />
+                  Upgrade to Premium (₹299)
+                </span>
               )}
             </button>
           </div>
