@@ -331,7 +331,7 @@ const EvaluationResult = ({ evaluation, onUpgrade }) => {
               ) : (
                 <>
                   <Zap className="w-5 h-5 mr-2" />
-                  Quick Upgrade (₹1)
+                  Quick Upgrade (₹299)
                 </>
               )}
             </button>
