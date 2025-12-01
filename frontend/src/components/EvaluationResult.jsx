@@ -161,9 +161,10 @@ const EvaluationResult = ({ evaluation, onUpgrade }) => {
             // Refresh user profile to get updated premium status
             await refreshProfile();
             
-            // Show success message
+            // Show success message and update UI without reloading
             alert('Payment successful! You now have access to premium features.');
-            window.location.reload();
+            // Instead of reloading, update the local state to show full report
+            setShowFullReport(true);
             
           } catch (error) {
             console.error("Error processing payment:", error);
