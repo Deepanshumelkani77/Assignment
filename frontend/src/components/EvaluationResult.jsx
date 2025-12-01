@@ -204,19 +204,19 @@ const EvaluationResult = ({ evaluation, onUpgrade }) => {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       {/* Header */}
-      <div className="text-center">
-        <h2 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-400">
+      <div className="text-center px-2 sm:px-0">
+        <h2 className="text-xl sm:text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-400">
           {isUserPremium ? 'Full Report' : 'Evaluation Summary'}
         </h2>
-        <p className="text-gray-400 mt-1">Analyzed on {formattedDate}</p>
+        <p className="text-sm sm:text-base text-gray-400 mt-1">Analyzed on {formattedDate}</p>
       </div>
 
       {/* Score */}
-      <div className="bg-gray-800/50 border border-gray-700 rounded-xl p-6">
+      <div className="bg-gray-800/50 border border-gray-700 rounded-xl p-4 sm:p-6">
         <div className="flex flex-col items-center">
-          <div className="relative w-32 h-32 flex items-center justify-center">
+          <div className="relative w-28 h-28 sm:w-32 sm:h-32 flex items-center justify-center">
             <svg className="absolute w-full h-full" viewBox="0 0 36 36">
               <path
                 d="M18 2.0845
@@ -240,23 +240,23 @@ const EvaluationResult = ({ evaluation, onUpgrade }) => {
             </svg>
             
             <div className="relative z-10 text-center">
-              <div className="text-3xl font-bold text-white">
+              <div className="text-2xl sm:text-3xl font-bold text-white">
                 {displayScore}
-                <span className="text-base font-medium text-gray-400 ml-1">/10</span>
+                <span className="text-sm sm:text-base font-medium text-gray-400 ml-0.5 sm:ml-1">/10</span>
               </div>
             </div>
             
-            <div className="absolute -bottom-2 left-1/2 transform -translate-x-1/2">
+            <div className="absolute -bottom-1 sm:-bottom-2 left-1/2 transform -translate-x-1/2">
               {score > 8 ? (
-                <Star className="w-6 h-6 text-yellow-400" fill="currentColor" />
+                <Star className="w-5 h-5 sm:w-6 sm:h-6 text-yellow-400" fill="currentColor" />
               ) : score > 6 ? (
-                <Check className="w-6 h-6 text-green-400" />
+                <Check className="w-5 h-5 sm:w-6 sm:h-6 text-green-400" />
               ) : (
-                <AlertTriangle className="w-6 h-6 text-orange-400" />
+                <AlertTriangle className="w-5 h-5 sm:w-6 sm:h-6 text-orange-400" />
               )}
             </div>
           </div>
-          <p className="mt-4 text-center text-gray-300">
+          <p className="mt-3 sm:mt-4 text-center text-sm sm:text-base text-gray-300 px-2">
             {score > 8
               ? 'Excellent code quality!'
               : score > 6
@@ -267,49 +267,49 @@ const EvaluationResult = ({ evaluation, onUpgrade }) => {
       </div>
 
       {/* Strengths */}
-      <div className="space-y-4">
-        <h3 className="text-lg font-semibold text-white flex items-center">
-          <Check className="w-5 h-5 text-green-400 mr-2" />
+      <div className="space-y-3 sm:space-y-4">
+        <h3 className="text-base sm:text-lg font-semibold text-white flex items-center">
+          <Check className="w-4 h-4 sm:w-5 sm:h-5 text-green-400 mr-2" />
           Key Strengths
         </h3>
-        <div className="space-y-3">
+        <div className="space-y-2 sm:space-y-3">
           {safeStrengths.length > 0 ? (
             safeStrengths.map((strength, index) => (
               <div key={index} className="flex items-start">
-                <div className="flex-shrink-0 mt-1">
-                  <div className="w-5 h-5 rounded-full bg-green-500/20 flex items-center justify-center">
-                    <Check className="w-3 h-3 text-green-400" />
+                <div className="flex-shrink-0 mt-0.5 sm:mt-1">
+                  <div className="w-4 h-4 sm:w-5 sm:h-5 rounded-full bg-green-500/20 flex items-center justify-center">
+                    <Check className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-green-400" />
                   </div>
                 </div>
-                <p className="ml-3 text-gray-300">{strength.trim()}</p>
+                <p className="ml-2 sm:ml-3 text-sm sm:text-base text-gray-300">{strength.trim()}</p>
               </div>
             ))
           ) : (
-            <p className="text-gray-400">No specific strengths identified in the code.</p>
+            <p className="text-sm sm:text-base text-gray-400">No specific strengths identified in the code.</p>
           )}
         </div>
       </div>
 
       {/* Improvements */}
-      <div className="space-y-4">
-        <h3 className="text-lg font-semibold text-white flex items-center">
-          <AlertTriangle className="w-5 h-5 text-orange-400 mr-2" />
+      <div className="space-y-3 sm:space-y-4">
+        <h3 className="text-base sm:text-lg font-semibold text-white flex items-center">
+          <AlertTriangle className="w-4 h-4 sm:w-5 sm:h-5 text-yellow-400 mr-2" />
           Areas for Improvement
         </h3>
-        <div className="space-y-3">
+        <div className="space-y-2 sm:space-y-3">
           {safeImprovements.length > 0 ? (
             safeImprovements.map((improvement, index) => (
               <div key={index} className="flex items-start">
-                <div className="flex-shrink-0 mt-1">
-                  <div className="w-5 h-5 rounded-full bg-orange-500/20 flex items-center justify-center">
-                    <AlertTriangle className="w-3 h-3 text-orange-400" />
+                <div className="flex-shrink-0 mt-0.5 sm:mt-1">
+                  <div className="w-4 h-4 sm:w-5 sm:h-5 rounded-full bg-yellow-500/20 flex items-center justify-center">
+                    <AlertTriangle className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-yellow-400" />
                   </div>
                 </div>
-                <p className="ml-3 text-gray-300">{improvement.trim()}</p>
+                <p className="ml-2 sm:ml-3 text-sm sm:text-base text-gray-300">{improvement.trim()}</p>
               </div>
             ))
           ) : (
-            <p className="text-gray-400">No specific improvements suggested for the code.</p>
+            <p className="text-sm sm:text-base text-gray-400">No specific improvements suggested.</p>
           )}
         </div>
       </div>

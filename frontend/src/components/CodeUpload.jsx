@@ -252,108 +252,109 @@ Format your response with clear sections for each part.`;
   }
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-400">
-          Submit Your Code
-        </h2>
-        <p className="text-gray-400">Get AI-powered code evaluation and improvement suggestions</p>
-      </div>
-
-      <form onSubmit={handleSubmit} className="space-y-6">
-        <div>
-          <label htmlFor="title" className="block text-sm font-medium text-gray-300 mb-1">
-            Title <span className="text-red-500">*</span>
-          </label>
-          <input
-            type="text"
-            id="title"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/30 transition-all"
-            placeholder="e.g., Sorting Algorithm Implementation"
-            required
-          />
-        </div>
-
-        <div>
-          <label htmlFor="description" className="block text-sm font-medium text-gray-300 mb-1">
-            Description <span className="text-red-500">*</span>
-          </label>
-          <textarea
-            id="description"
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            rows="2"
-            className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/30 transition-all"
-            placeholder="Briefly describe what your code does..."
-            required
-          />
-        </div>
-
-        <div className="space-y-2">
-          <label className="text-sm font-medium text-gray-300">Paste Code</label>
-          <div className="flex justify-between items-center">
-            <span className="text-xs text-gray-500">
-              {code.length}/{MAX_CODE_LENGTH} chars
-            </span>
-            {code.length > 0 && (
-              <button
-                type="button"
-                onClick={() => setCode('')}
-                className="text-xs text-red-400 hover:text-red-300"
-              >
-                Clear
-              </button>
-            )}
-          </div>
-          <textarea
-            value={code}
-            onChange={(e) => {
-              if (e.target.value.length <= MAX_CODE_LENGTH) {
-                setCode(e.target.value);
-              }
-            }}
-            rows="10"
-            className="w-full px-4 py-3 font-mono text-sm bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/30 transition-all"
-            placeholder="Paste your code here..."
-            required
-          />
-          {code.length === MAX_CODE_LENGTH && (
-            <p className="text-xs text-red-400">Maximum character limit reached</p>
-          )}
-        </div>
-
-        {error && (
-          <div className="p-4 bg-red-900/30 border border-red-800/50 rounded-lg text-red-200 text-sm">
-            {error}
-          </div>
-        )}
-
-        <div className="pt-2">
-          <button
-            type="submit"
-            disabled={isLoading || !code || !title.trim()}
-            className={`w-full py-3 px-6 rounded-lg font-medium transition-all ${
-              isLoading || !code || !title.trim()
-                ? 'bg-gray-700 text-gray-500 cursor-not-allowed'
-                : 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white shadow-lg hover:shadow-xl'
-            }`}
-          >
-            {isLoading ? (
-              <div className="flex items-center justify-center">
-                <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                Analyzing...
+    <div className="space-y-4 sm:space-y-6">
+      {!evaluation ? (
+        <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
+          <div className="space-y-3 sm:space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-1">Title</label>
+              <input
+                type="text"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                className="w-full px-3 sm:px-4 py-2 sm:py-3 bg-gray-800 border border-gray-700 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm sm:text-base"
+                placeholder="Enter a title for your code"
+                maxLength={100}
+              />
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-1">Description</label>
+              <textarea
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                className="w-full px-3 sm:px-4 py-2 sm:py-3 bg-gray-800 border border-gray-700 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm sm:text-base"
+                rows="2"
+                placeholder="Briefly describe what this code does"
+                maxLength={200}
+              />
+            </div>
+            
+            <div>
+              <div className="flex justify-between items-center mb-1">
+                <label className="block text-sm font-medium text-gray-300">Your Code</label>
+                <span className="text-xs text-gray-500">{code.length}/{MAX_CODE_LENGTH} characters</span>
               </div>
-            ) : (
-              'Evaluate Code'
+              <div className="relative">
+                <textarea
+                  value={code}
+                  onChange={(e) => setCode(e.target.value)}
+                  className="w-full px-3 sm:px-4 py-2 sm:py-3 bg-gray-800 border border-gray-700 rounded-lg text-white font-mono text-xs sm:text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  rows="10"
+                  placeholder="Paste your code here..."
+                  maxLength={MAX_CODE_LENGTH}
+                />
+                {code && (
+                  <button
+                    type="button"
+                    onClick={() => setCode('')}
+                    className="absolute top-1.5 right-1.5 p-1 rounded-full bg-gray-700 text-gray-400 hover:text-white hover:bg-gray-600"
+                    aria-label="Clear code"
+                  >
+                    <X className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                  </button>
+                )}
+              </div>
+            </div>
+            
+            {error && (
+              <div className="p-2 sm:p-3 bg-red-900/30 border border-red-800 rounded-lg text-red-200 text-xs sm:text-sm">
+                {error}
+              </div>
             )}
-          </button>
+            
+            <div className="pt-1 sm:pt-2">
+              <button
+                type="submit"
+                disabled={isLoading || !code.trim()}
+                className={`w-full flex items-center justify-center px-4 sm:px-6 py-2 sm:py-3 rounded-lg font-medium transition-all duration-200 text-sm sm:text-base ${
+                  isLoading || !code.trim()
+                    ? 'bg-gray-700 text-gray-400 cursor-not-allowed'
+                    : 'bg-gradient-to-r from-blue-600 to-purple-600 text-white hover:from-blue-500 hover:to-purple-500 shadow-lg hover:shadow-blue-500/20'
+                }`}
+              >
+                {isLoading ? (
+                  <>
+                    <Loader2 className="animate-spin w-4 h-4 sm:w-5 sm:h-5 mr-2" />
+                    Evaluating...
+                  </>
+                ) : (
+                  <>
+                    <CodeIcon className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
+                    Evaluate Code
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </form>
+      ) : (
+        <div className="space-y-4 sm:space-y-6">
+          <div className="flex justify-between items-center">
+            <h2 className="text-lg sm:text-xl font-bold text-white">Evaluation Result</h2>
+            <button
+              onClick={() => setEvaluation(null)}
+              className="text-xs sm:text-sm text-gray-400 hover:text-white flex items-center"
+              aria-label="Close evaluation"
+            >
+              <X className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1" /> Close
+            </button>
+          </div>
+          <div className="-mx-2 sm:mx-0">
+            <EvaluationResult evaluation={evaluation} />
+          </div>
         </div>
-      </form>
+      )}
     </div>
   );
 };

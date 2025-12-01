@@ -21,7 +21,7 @@ const Dashboard = () => {
   };
 
   return (
-    <div className="flex h-screen bg-gradient-to-br from-black via-black/90 to-black/80 text-gray-100 relative overflow-hidden">
+    <div className="flex flex-col md:flex-row h-screen bg-gradient-to-br from-black via-black/90 to-black/80 text-gray-100 relative overflow-hidden">
       {/* Animated background elements */}
       <div className="absolute inset-0 overflow-hidden">
         <div className="absolute -top-1/2 -right-1/2 w-full h-full bg-gradient-radial from-blue-500/5 to-transparent opacity-30"></div>
@@ -36,7 +36,7 @@ const Dashboard = () => {
         profile={profile}
       />
       
-      <main className="flex-1 overflow-y-auto p-4 md:p-8 relative z-10">
+      <main className="flex-1 overflow-y-auto p-4 md:p-8 relative z-10 mt-16 md:mt-0">
         <div className="max-w-6xl mx-auto">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
