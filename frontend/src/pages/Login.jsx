@@ -52,7 +52,7 @@ const Login = () => {
       } else {
         const { success, error: signUpError } = await signUp(email, password, name);
         if (success) {
-          setError('Check your email to verify your account!');
+          setError('success:Check your email to verify your account!');
           setIsLogin(true);
 
           setName('');
@@ -141,11 +141,15 @@ const Login = () => {
 
           {error && (
             <motion.div 
-              className="bg-red-900/50 border-l-4 border-red-500 p-4 rounded-lg"
+              className={`p-4 rounded-lg ${error.startsWith('success:') 
+                ? 'bg-green-900/50 border-l-4 border-green-500' 
+                : 'bg-red-900/50 border-l-4 border-red-500'}`}
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
             >
-              <p className="text-sm text-red-200">{error}</p>
+              <p className={`text-sm ${error.startsWith('success:') ? 'text-green-200' : 'text-red-200'}`}>
+                {error.startsWith('success:') ? error.substring(8) : error}
+              </p>
             </motion.div>
           )}
 
