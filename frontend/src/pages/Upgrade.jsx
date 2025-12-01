@@ -81,7 +81,7 @@ const Upgrade = () => {
       setLoading(true);
       setError(null);
       
-      const amount = 299; // 1 INR in paise
+      const amount = 299; // 299 INR
       
       // Load Razorpay script
       const Razorpay = await loadRazorpay();
